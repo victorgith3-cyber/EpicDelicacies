@@ -278,7 +278,22 @@ body.lock{overflow:hidden}
   *,*::before,*::after{animation:none!important;transition:none!important;scroll-behavior:auto!important}
   .reveal{opacity:1;transform:none}
 }
-</style>
+
+/* ---- VISIT / MAP + DELIVERY ---- */
+.visit{padding:clamp(40px,7vw,80px) clamp(16px,4vw,32px)}
+.visit-inner{max-width:1100px;margin:0 auto;display:grid;gap:clamp(20px,4vw,40px);align-items:center}
+.visit h2{margin:0 0 12px;line-height:1.15}
+.visit p{margin:0 0 12px;line-height:1.6}
+.visit-points{list-style:none;margin:16px 0 20px;padding:0;display:grid;gap:10px}
+.visit-points li{padding:12px 14px;border-radius:12px;border:1px solid rgba(128,128,128,.28);background:rgba(128,128,128,.07);line-height:1.5}
+.visit-points b{display:block;margin-bottom:2px}
+.visit-btn{display:inline-block;padding:12px 20px;border-radius:999px;background:#1a1a1a;color:#fff;text-decoration:none;font-weight:700}
+.visit-btn:hover{opacity:.88}
+.visit-map{position:relative;width:100%;aspect-ratio:4/3;max-height:420px;border-radius:18px;overflow:hidden;border:1px solid rgba(128,128,128,.28);box-shadow:0 10px 30px rgba(0,0,0,.15);background:#222}
+.visit-map iframe{position:absolute;inset:0;width:100%;height:100%;border:0;pointer-events:none}
+.visit-map-link{position:absolute;inset:0;display:block;text-decoration:none}
+.visit-map-badge{position:absolute;left:12px;bottom:12px;max-width:calc(100% - 24px);padding:8px 14px;border-radius:999px;background:rgba(0,0,0,.72);color:#fff;font-size:14px;font-weight:700}
+@media (min-width:820px){.visit-inner{grid-template-columns:1fr 1.25fr}}</style>
 </head>
 <body>
 
@@ -365,6 +380,25 @@ body.lock{overflow:hidden}
   </div>
 </section>
 
+<section class="visit" id="visit" aria-labelledby="visit-title">
+  <div class="visit-inner">
+    <div class="visit-text">
+      <h2 id="visit-title">Pickup &amp; delivery</h2>
+      <p><b>Pickup is advised</b> for most orders. Come and collect from us at the location on the map.</p>
+      <ul class="visit-points">
+        <li><b>Free delivery</b>Free on products that are <b style="display:inline">in stock</b> only.</li>
+        <li><b>All other deliveries</b>The delivery fee is already included in the price, depending on your location.</li>
+      </ul>
+      <a class="visit-btn" href="https://maps.app.goo.gl/tC9ujYaXajwimwx67" target="_blank" rel="noopener">&#128205; Get directions</a>
+    </div>
+    <div class="visit-map">
+      <iframe src="https://maps.google.com/maps?q=-1.1935959,36.641497&amp;z=17&amp;t=k&amp;output=embed" title="Satellite map of Epic Delicacies pickup location" loading="lazy" referrerpolicy="no-referrer-when-downgrade" tabindex="-1" aria-hidden="true"></iframe>
+      <a class="visit-map-link" href="https://maps.app.goo.gl/tC9ujYaXajwimwx67" target="_blank" rel="noopener" aria-label="Open Epic Delicacies location in Google Maps">
+        <span class="visit-map-badge">Open in Google Maps &#8599;</span>
+      </a>
+    </div>
+  </div>
+</section>
 <footer>
   <div class="wrap foot">
     <div>
