@@ -1,0 +1,14 @@
+{
+  "name": "Epic Delicacies",
+  "short_name": "Epic Delicacies",
+  "description": "Homemade pastries, bakes, ice pops and matcha. Order on WhatsApp.",
+  "start_url": "./",
+  "display": "standalone",
+  "background_color": "#FFF7EA",
+  "theme_color": "#143D28",
+  "icons": [
+    {"src":"icon-192.png","sizes":"192x192","type":"image/png"},
+    {"src":"icon-512.png","sizes":"512x512","type":"image/png"},
+    {"src":"icon-maskable-512.png","sizes":"512x512","type":"image/png","purpose":"maskable"}
+  ]
+}
