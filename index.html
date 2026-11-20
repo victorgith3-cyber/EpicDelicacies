@@ -253,6 +253,20 @@ body.lock{overflow:hidden}
 .d-foot{padding:16px 20px calc(16px + env(safe-area-inset-bottom));border-top:1px solid rgba(31,90,58,.12);background:#fff}
 .d-sum{display:flex;justify-content:space-between;font-weight:700;color:var(--green);margin-bottom:12px}
 .d-foot .btn{width:100%;padding:15px}
+.stock{position:absolute;z-index:2;left:14px;bottom:14px;display:inline-flex;align-items:center;gap:7px;padding:6px 12px;border-radius:999px;font-size:.74rem;font-weight:700;background:#fff;box-shadow:0 6px 16px -8px rgba(0,0,0,.45);max-width:calc(100% - 28px)}
+.stock::before{content:"";width:8px;height:8px;border-radius:50%;background:currentColor;flex:none}
+.stock.ready{color:#168a45}
+.stock.made{color:var(--orange-deep)}
+.stock.sold{color:#7b827d}
+.card .stnote{font-size:.8rem;font-weight:700;color:var(--orange-deep)}
+.card.soldout .img img{filter:grayscale(1);opacity:.5}
+.card.soldout h3{color:#7b827d}
+.card.soldout .btn-add,.card.soldout .btn-add:hover{background:#cfd4d0;color:#fff;box-shadow:none;animation:none;transform:none;cursor:not-allowed}
+.card.soldout .btn-add::after{display:none}
+.d-note.ok{background:rgba(37,211,102,.16)}
+.d-form label{font-size:.82rem;font-weight:700;color:var(--green);margin:4px 0 -4px}
+.d-form input[type=date]{min-height:48px;-webkit-appearance:none;appearance:none}
+.d-note{font-size:.82rem;line-height:1.45;color:var(--ink);background:rgba(242,140,40,.14);border-radius:12px;padding:10px 12px}
 .toast{position:fixed;left:50%;bottom:max(90px,calc(80px + env(safe-area-inset-bottom)));transform:translate(-50%,20px);z-index:95;background:var(--ink);color:#fff;padding:12px 20px;border-radius:999px;font-weight:600;font-size:.9rem;opacity:0;pointer-events:none;transition:.35s;max-width:92vw;text-align:center}
 .toast.show{opacity:1;transform:translate(-50%,0)}
 @media(max-width:600px){
@@ -332,9 +346,10 @@ body.lock{overflow:hidden}
   <div class="wrap">
     <div class="head reveal"><span class="eyebrow">Simple</span><h2>How to order</h2></div>
     <div class="steps">
-      <div class="step reveal"><i>01</i><h3>Choose</h3><p>Browse the menu and set how many you want.</p></div>
-      <div class="step reveal"><i>02</i><h3>Tap order</h3><p>WhatsApp opens with your order already typed out.</p></div>
-      <div class="step reveal"><i>03</i><h3>Confirm</h3><p>Share your location and time. We confirm and prepare.</p></div>
+      <div class="step reveal"><i>01</i><h3>Choose</h3><p>Browse the menu and set how many of each treat you want.</p></div>
+      <div class="step reveal"><i>02</i><h3>Add to cart</h3><p>Tap "Add to cart" on everything you like. Order as many items as you want.</p></div>
+      <div class="step reveal"><i>03</i><h3>Review &amp; send</h3><p>Open your cart, add your details and tap "Send order on WhatsApp". Your full list is typed out for you.</p></div>
+      <div class="step reveal"><i>04</i><h3>Confirm</h3><p>We reply to confirm the price, delivery and time, then we prepare your order.</p></div>
     </div>
   </div>
 </section>
@@ -381,7 +396,11 @@ body.lock{overflow:hidden}
         <input id="cName" type="text" placeholder="Your name" autocomplete="name">
         <select id="cMode" aria-label="Delivery or pickup"><option>Delivery</option><option>Pickup</option></select>
         <input id="cLoc" type="text" placeholder="Location / delivery address" autocomplete="street-address">
-        <input id="cWhen" type="text" placeholder="Date and time needed, e.g. Saturday 4pm">
+        <label for="cDate">Date needed</label>
+        <input id="cDate" type="date">
+        <label for="cTime">Time needed</label>
+        <select id="cTime" aria-label="Time needed"></select>
+        <p class="d-note" id="cLeadNote"></p>
         <textarea id="cNote" placeholder="Notes (flavours, message on cake, allergies)"></textarea>
       </div>
     </div>
@@ -427,6 +446,28 @@ const PRODUCTS = [
   { name:"Ice Cream Pop Tubes",          cat:"Frozen",   emoji:"🍧", image:"images/ice-pops-2.jpg",      desc:"Creamy and fruity ice tubes in blue, vanilla, mango, chocolate and berry." },
   { name:"Iced Matcha Latte",            cat:"Drinks",   emoji:"🍵", image:"images/matcha.jpg",          pos:"50% 62%", desc:"Ceremonial-style matcha over cold milk and ice. Earthy, smooth and lightly sweet." }
 ];
+
+/* Opening hours and how long each category needs to be prepared (minutes).
+   The earliest date and time a customer can pick is worked out from what is in their cart. */
+const SCHEDULE = {
+  open: 8, close: 20,       // opening hours, 24h clock (8:00 to 20:00)
+  step: 30,                 // pick-up/delivery slots every 30 minutes
+  maxDays: 30,              // how far ahead customers can order
+  readyLead: 15,            // minutes to pack and dispatch items that are in stock
+  leadByCategory: { Pastries: 120, Cakes: 1440, Frozen: 30, Drinks: 15 },
+  leadByProduct:  { "Spiced Banana Loaf Cake": 180 }   // optional: overrides for single products
+};
+
+/* AVAILABILITY - which items are ready now, made to order, or sold out.
+   Easiest way: keep a Google Sheet (Product | Status | Note), publish it as CSV and paste the link below.
+   The site reads it on every visit and every 5 minutes, so you never need to edit this file again.
+   Status words: "Ready now", "Made to order", "Sold out".
+   AVAILABILITY below is the fallback used when there is no sheet (or it cannot be reached). Items not listed are "Made to order". */
+const SHEET_CSV_URL = "";
+const AVAILABILITY = {
+  // "Iced Matcha Latte": "Ready now",
+  // "Cakesicles": "Sold out"
+};
 
 const BOOKINGS = [
   { title:"Birthday & Celebration Cakes", sub:"Custom flavours, messages and designs", msg:"Hello Epic Delicacies! I'd like to book a custom cake.\nOccasion: \nDate needed: \nServings: \nFlavour: " },
@@ -476,19 +517,23 @@ function render(){
   const list = PRODUCTS.filter(p => active === "All" || p.cat === active);
   $("#grid").innerHTML = list.map(p => {
     const i = PRODUCTS.indexOf(p); qty[i] = qty[i] || 1;
-    return `<article class="card reveal">
+    const st = statusOf(p), sold = st === "sold", note = noteOf(p);
+    const chip = st === "ready" ? "In stock" : sold ? "Sold out" : `Made to order · ${human(leadOf(p))}`;
+    return `<article class="card reveal${sold ? " soldout" : ""}">
       <div class="img"><span class="tag">${p.cat}</span>${p.emoji}
         <img src="${p.image}" alt="${p.name}" loading="lazy" decoding="async" width="600" height="600" style="object-position:${p.pos || "50% 50%"}" onerror="this.remove()">
+        <span class="stock ${st}">${chip}</span>
       </div>
       <div class="body">
         <h3>${p.name}</h3>
         <p>${p.desc}</p>
+        ${note ? `<span class="stnote">${esc(note)}</span>` : ""}
         ${typeof p.price === "number" ? `<div class="price">${fmt(p.price)}</div>` : ""}
         <div class="row">
           <div class="qty"><button data-i="${i}" data-d="-1" aria-label="Fewer">−</button><span id="q${i}" aria-live="polite">${qty[i]}</span><button data-i="${i}" data-d="1" aria-label="More">+</button></div>
-          <button class="btn btn-orange btn-add" data-add="${i}"><svg class="ic"><use href="#i-cart"/></svg><span class="lbl">Add to cart</span></button>
+          <button class="btn btn-orange btn-add" data-add="${i}"${sold ? " disabled" : ""}><svg class="ic"><use href="#i-cart"/></svg><span class="lbl">${sold ? "Sold out" : "Add to cart"}</span></button>
         </div>
-        <a class="single" id="o${i}" target="_blank" rel="noopener" href="${wa(orderText(p, qty[i]))}">or order just this on WhatsApp</a>
+        ${sold ? "" : `<a class="single" id="o${i}" target="_blank" rel="noopener" href="${wa(orderText(p, qty[i]))}">or order just this on WhatsApp</a>`}
       </div>
     </article>`;
   }).join("");
@@ -499,7 +544,7 @@ $("#grid").addEventListener("click", e => {
   if(a){
     const i = +a.dataset.add, p = PRODUCTS[i], n = qty[i];
     cart[p.name] = (cart[p.name] || 0) + n;
-    qty[i] = 1; $("#q"+i).textContent = 1; $("#o"+i).href = wa(orderText(p, 1));
+    qty[i] = 1; $("#q"+i).textContent = 1; const one = $("#o"+i); if(one) one.href = wa(orderText(p, 1));
     saveCart(); updateCart(true); toast(`${n} × ${p.name} added to cart`);
     const l = a.querySelector(".lbl"); l.textContent = "Added ✓";
     setTimeout(() => l.textContent = "Add to cart", 1400);
@@ -509,7 +554,7 @@ $("#grid").addEventListener("click", e => {
   const i = +b.dataset.i;
   qty[i] = Math.max(1, qty[i] + +b.dataset.d);
   $("#q"+i).textContent = qty[i];
-  $("#o"+i).href = wa(orderText(PRODUCTS[i], qty[i]));
+  const one = $("#o"+i); if(one) one.href = wa(orderText(PRODUCTS[i], qty[i]));
 });
 
 // booking cards
@@ -552,6 +597,21 @@ Object.keys(cart).forEach(n => { if(!PRODUCTS.some(p => p.name === n) || !(cart[
 const saveCart = () => { try { localStorage.setItem("epic_cart", JSON.stringify(cart)); } catch(e) {} };
 const cartCount = () => Object.values(cart).reduce((a,b) => a + b, 0);
 const find = (n) => PRODUCTS.find(p => p.name === n);
+const esc = (s) => String(s).replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+
+/* ---- availability: ready now / made to order / sold out ---- */
+let avail = {};   // filled from the Google Sheet, keyed by lower-case product name
+function parseStatus(s){
+  s = String(s || "").trim().toLowerCase();
+  if (!s) return null;
+  if (/sold|out of stock|unavailable|not available|finished|^out$|^off$/.test(s)) return "sold";
+  if (/ready|in stock|instock|available|^yes$|^y$/.test(s)) return "ready";
+  if (/made|order|prepar|bake|^no$|^n$/.test(s)) return "made";
+  return null;
+}
+const statusOf = (p) => { const a = avail[p.name.toLowerCase()]; return (a && a.status) || parseStatus(AVAILABILITY[p.name]) || "made"; };
+const noteOf = (p) => { const a = avail[p.name.toLowerCase()]; return (a && a.note) || ""; };
+const leadOf = (p) => statusOf(p) === "ready" ? SCHEDULE.readyLead : (SCHEDULE.leadByProduct[p.name] ?? SCHEDULE.leadByCategory[p.cat] ?? 60);
 const cartTotal = () => {   // null unless every item has a numeric price
   let t = 0;
   for (const [n,q] of Object.entries(cart)) { const p = find(n); if(typeof p.price !== "number") return null; t += p.price * q; }
@@ -562,15 +622,67 @@ function cartMessage(){
   const v = id => $("#"+id).value.trim();
   const lines = Object.entries(cart).map(([n,q], k) => {
     const p = find(n);
-    return `${k+1}. ${n} × ${q}${typeof p.price === "number" ? ` (${fmt(p.price*q)})` : ""}`;
+    return `${k+1}. ${n} × ${q}${typeof p.price === "number" ? ` (${fmt(p.price*q)})` : ""} - ${statusOf(p) === "ready" ? "in stock" : "made to order"}`;
   });
   const t = cartTotal();
   return `Hello ${BUSINESS.name}! 👋\nI'd like to place this order:\n\n${lines.join("\n")}\n\nTotal items: ${cartCount()}` +
     (t !== null ? `\nTotal: ${fmt(t)}` : "") +
-    `\n\nName: ${v("cName")}\nDelivery or pickup: ${v("cMode")}\nLocation: ${v("cLoc")}\nDate/time needed: ${v("cWhen")}` +
+    `\n\nName: ${v("cName")}\nDelivery or pickup: ${v("cMode")}\nLocation: ${v("cLoc")}\nDate/time needed: ${whenText()}` +
     (v("cNote") ? `\nNotes: ${v("cNote")}` : "") + `\n\nThank you!`;
 }
 const refreshLink = () => { $("#cSend").href = wa(cartMessage()); };
+
+/* ---- date and time: from today, based on how long the items take to prepare ---- */
+const pad = (n) => String(n).padStart(2, "0");
+const ymd = (d) => `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
+const slotLabel = (t) => { const h = Math.floor(t/60), m = t % 60; return `${h % 12 || 12}:${pad(m)} ${h >= 12 ? "PM" : "AM"}`; };
+const plural = (n, w) => `${n} ${w}${n === 1 ? "" : "s"}`;
+const human = (m) => m >= 1440 ? plural(Math.round(m/1440), "day") : m >= 60 ? plural(+(m/60).toFixed(1), "hour") : plural(m, "minute");
+
+function earliest(){
+  let m = 0, why = "", whyLead = 0, allReady = true;
+  for (const n of Object.keys(cart)) {
+    const p = find(n), l = leadOf(p);
+    if (statusOf(p) !== "ready") { allReady = false; if (l > whyLead) { whyLead = l; why = p.name; } }
+    if (l > m) m = l;
+  }
+  const d = new Date(Date.now() + m * 60000);
+  d.setSeconds(0, 0);
+  const r = d.getMinutes() % SCHEDULE.step;
+  if (r) d.setMinutes(d.getMinutes() + SCHEDULE.step - r);            // round up to the next slot
+  const mins = d.getHours() * 60 + d.getMinutes();
+  if (mins > SCHEDULE.close * 60) { d.setDate(d.getDate() + 1); d.setHours(SCHEDULE.open, 0, 0, 0); }  // after closing: next morning
+  else if (mins < SCHEDULE.open * 60) d.setHours(SCHEDULE.open, 0, 0, 0);
+  return { d, m: whyLead, why, allReady };
+}
+
+function updateWhen(){
+  const dt = $("#cDate"), tm = $("#cTime"), e = earliest();
+  const minDay = ymd(e.d), last = new Date(); last.setDate(last.getDate() + SCHEDULE.maxDays);
+  dt.min = minDay; dt.max = ymd(last);
+  if (!dt.value || dt.value < minDay) dt.value = minDay;                // never earlier than today / the earliest day
+  const from = dt.value === minDay ? e.d.getHours() * 60 + e.d.getMinutes() : SCHEDULE.open * 60;
+  const prev = tm.value; let html = "";
+  for (let t = SCHEDULE.open * 60; t <= SCHEDULE.close * 60; t += SCHEDULE.step) if (t >= from) html += `<option value="${t}">${slotLabel(t)}</option>`;
+  tm.innerHTML = html;
+  if ([...tm.options].some(o => o.value === prev)) tm.value = prev;
+  const day = e.d.toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short" });
+  const when = slotLabel(e.d.getHours()*60 + e.d.getMinutes()), today = ymd(e.d) === ymd(new Date());
+  $("#cLeadNote").className = "d-note" + (e.allReady ? " ok" : "");
+  $("#cLeadNote").textContent = e.allReady
+    ? `✅ In stock. Your order can be on its way from ${when} ${today ? "today" : "on " + day}.`
+    : `Earliest for your order: ${day} at ${when}. ${e.why} needs about ${human(e.m)} to prepare.`;
+}
+
+function whenText(){
+  const d = $("#cDate").value, t = +$("#cTime").value;
+  if (!d || isNaN(t)) return "";
+  const [y, mo, da] = d.split("-").map(Number);
+  return `${new Date(y, mo-1, da).toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short", year: "numeric" })}, ${slotLabel(t)}`;
+}
+$("#cDate").addEventListener("change", () => { updateWhen(); refreshLink(); });
+$("#pill").addEventListener("click", () => { updateWhen(); refreshLink(); });                 // refresh when the cart is opened
+$("#cSend").addEventListener("click", () => { updateWhen(); refreshLink(); }, true);          // re-check just before sending
 
 function updateCart(bump){
   const n = cartCount(), entries = Object.entries(cart);
@@ -590,7 +702,7 @@ function updateCart(bump){
   const t = cartTotal();
   $("#dCount").textContent = `${n} item${n === 1 ? "" : "s"}`;
   $("#dTotal").textContent = t !== null && n ? fmt(t) : "";
-  if(n) refreshLink();
+  if(n){ updateWhen(); refreshLink(); }
 }
 
 // open / close
@@ -619,7 +731,18 @@ $("#dList").addEventListener("click", e => {
   saveCart(); updateCart();
 });
 $("#dClear").addEventListener("click", () => { cart = {}; saveCart(); updateCart(); });
-["cName","cMode","cLoc","cWhen","cNote"].forEach(id => $("#"+id).addEventListener("input", refreshLink));
+["cName","cMode","cLoc","cDate","cTime","cNote"].forEach(id => $("#"+id).addEventListener("input", refreshLink));
+
+// once the order is sent, empty the cart so a new order can start
+$("#cSend").addEventListener("click", () => {
+  if(!cartCount()) return;
+  setTimeout(() => {
+    cart = {}; saveCart(); updateCart();
+    $("#cDate").value = ""; $("#cNote").value = "";   // name and location are kept for the next order
+    lastFocus = null; closeCart();
+    toast("Order sent! Your cart is empty and ready for a new order.");
+  }, 400);
+});
 
 // small toast
 let tt;
@@ -630,6 +753,40 @@ function toast(msg){
 
 render();
 updateCart();
+
+/* ---- live availability from the published Google Sheet ---- */
+function parseCSV(t){
+  const rows = []; let row = [], v = "", q = false;
+  for (let i = 0; i < t.length; i++) {
+    const c = t[i];
+    if (q) { if (c === '"') { if (t[i+1] === '"') { v += '"'; i++; } else q = false; } else v += c; }
+    else if (c === '"') q = true;
+    else if (c === ",") { row.push(v); v = ""; }
+    else if (c === "\n" || c === "\r") { if (c === "\r" && t[i+1] === "\n") i++; row.push(v); rows.push(row); row = []; v = ""; }
+    else v += c;
+  }
+  if (v || row.length) { row.push(v); rows.push(row); }
+  return rows;
+}
+async function loadAvailability(){
+  if (!SHEET_CSV_URL) return;
+  try {
+    const r = await fetch(SHEET_CSV_URL + (SHEET_CSV_URL.includes("?") ? "&" : "?") + "_=" + Date.now(), { cache: "no-store" });
+    if (!r.ok) throw new Error("HTTP " + r.status);
+    const map = {};
+    parseCSV(await r.text()).slice(1).forEach(c => {
+      const name = (c[0] || "").trim(), st = parseStatus(c[1]);
+      if (name && st) map[name.toLowerCase()] = { status: st, note: (c[2] || "").trim() };
+    });
+    avail = map;
+    const gone = Object.keys(cart).filter(n => statusOf(find(n)) === "sold");
+    gone.forEach(n => delete cart[n]);
+    saveCart(); render(); updateCart();
+    if (gone.length) toast(`${gone.join(", ")} just sold out and was removed from your cart`);
+  } catch (e) { /* keep the fallback list; the site still works */ }
+}
+loadAvailability();
+setInterval(loadAvailability, 5 * 60 * 1000);
 </script>
 </body>
 </html>
